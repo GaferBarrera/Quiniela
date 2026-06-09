@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quiniela 2026 🏆</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter + Bebas Neue (display) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script>
+    // Tailwind config — paleta y tipografía custom
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            pitch:   { DEFAULT: '#0A1628', light: '#112240' },
+            gold:    { DEFAULT: '#F0B429', dark: '#C98F0A'  },
+            grass:   { DEFAULT: '#1DB954', dark: '#17A349'  },
+            locked:  '#EF4444',
+            muted:   '#64748B',
+          },
+          fontFamily: {
+            display : ['Bebas Neue', 'sans-serif'],
+            body    : ['Inter', 'sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+
+    /* Animación de entrada para las tarjetas */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .card-anim { animation: fadeUp .35s ease both; }
+
+    /* Score input personalizado */
+    .score-input {
+      width: 3.2rem; height: 3.2rem;
+      text-align: center;
+      font-size: 1.5rem; font-weight: 700;
+      background: rgba(255,255,255,0.07);
+      border: 1.5px solid rgba(255,255,255,0.15);
+      border-radius: 0.5rem;
+      color: #fff;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .score-input:focus  { border-color: #F0B429; box-shadow: 0 0 0 3px rgba(240,180,41,.2); }
+    .score-input:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* Scrollbar discreta en el ranking */
+    .thin-scroll::-webkit-scrollbar { width: 4px; }
+    .thin-scroll::-webkit-scrollbar-track { background: transparent; }
+    .thin-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+
+    /* Shimmer skeleton */
+    @keyframes shimmer {
+      0%   { background-position: -600px 0; }
+      100% { background-position:  600px 0; }
+    }
+    .skeleton {
+      background: linear-gradient(90deg, #1e2d45 25%, #253756 50%, #1e2d45 75%);
+      background-size: 600px 100%;
+      animation: shimmer 1.4s infinite linear;
+      border-radius: 0.5rem;
+    }
+  </style>
+</head>
+
+<body class="bg-pitch text-white min-h-screen font-body">
+
+  <!-- ══════════════════════════════════════════════════════
+       AUTH OVERLAY (Login / Register)
+  ══════════════════════════════════════════════════════ -->
+  <div id="auth-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-pitch bg-opacity-95 p-4">
+    <div class="w-full max-w-sm bg-pitch-light rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
+
+      <!-- Logo -->
+      <div class="bg-gradient-to-br from-gold to-gold-dark px-6 py-5 flex items-center gap-3">
+        <span class="text-4xl">🏆</span>
+        <div>
+          <h1 class="font-display text-3xl text-pitch leading-none">QUINIELA 2026</h1>
+          <p class="text-pitch/60 text-xs font-medium mt-0.5">Grupo de trabajo — Mundial</p>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="flex border-b border-white/10">
+        <button onclick="switchAuthTab('login')" id="tab-login"
+          class="auth-tab flex-1 py-3 text-sm font-semibold text-gold border-b-2 border-gold transition-colors">
+          Ingresar
+        </button>
+        <button onclick="switchAuthTab('register')" id="tab-register"
+          class="auth-tab flex-1 py-3 text-sm font-semibold text-muted border-b-2 border-transparent hover:text-white transition-colors">
+          Registrarse
+        </button>
+      </div>
+
+      <!-- Forms -->
+      <div class="p-6 space-y-4">
+        <!-- LOGIN -->
+        <div id="form-login">
+          <div class="space-y-3">
+            <input id="login-email" type="email" placeholder="Correo electrónico"
+              class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm placeholder-muted focus:outline-none focus:border-gold/60 transition" />
+            <input id="login-password" type="password" placeholder="Contraseña"
+              class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm placeholder-muted focus:outline-none focus:border-gold/60 transition" />
+          </div>
+          <button onclick="handleLogin()"
+            class="mt-4 w-full bg-gold hover:bg-gold-dark text-pitch font-bold py-2.5 rounded-lg transition-colors text-sm">
+            Entrar al torneo
+          </button>
+        </div>
+
+        <!-- REGISTER -->
+        <div id="form-register" class="hidden">
+          <div class="space-y-3">
+            <input id="reg-username" type="text" placeholder="Nombre de usuario"
+              class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm placeholder-muted focus:outline-none focus:border-gold/60 transition" />
+            <input id="reg-email" type="email" placeholder="Correo electrónico"
+              class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm placeholder-muted focus:outline-none focus:border-gold/60 transition" />
+            <input id="reg-password" type="password" placeholder="Contraseña (mín. 6 caracteres)"
+              class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm placeholder-muted focus:outline-none focus:border-gold/60 transition" />
+          </div>
+          <button onclick="handleRegister()"
+            class="mt-4 w-full bg-grass hover:bg-grass-dark text-white font-bold py-2.5 rounded-lg transition-colors text-sm">
+            Crear cuenta
+          </button>
+        </div>
+
+        <p id="auth-error" class="text-locked text-xs text-center hidden"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       MAIN APP (visible tras autenticar)
+  ══════════════════════════════════════════════════════ -->
+  <div id="app" class="hidden">
+
+    <!-- ── TOP NAV ──────────────────────────────────────── -->
+    <nav class="sticky top-0 z-40 bg-pitch/90 backdrop-blur border-b border-white/5">
+      <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+        <!-- Brand -->
+        <span class="font-display text-2xl tracking-wide text-gold">QUINIELA <span class="text-white/40">2026</span></span>
+
+        <!-- Nav pills (desktop) -->
+        <div class="hidden sm:flex items-center gap-1 bg-white/5 rounded-full p-1">
+          <button onclick="showSection('matches')" id="nav-matches"
+            class="nav-pill active px-4 py-1.5 rounded-full text-sm font-semibold transition-all">
+            ⚽ Partidos
+          </button>
+          <button onclick="showSection('ranking')" id="nav-ranking"
+            class="nav-pill px-4 py-1.5 rounded-full text-sm font-medium text-muted hover:text-white transition-all">
+            🏅 Ranking
+          </button>
+        </div>
+
+        <!-- User badge + logout -->
+        <div class="flex items-center gap-2">
+          <div class="hidden sm:flex items-center gap-2 bg-white/5 rounded-full px-3 py-1.5">
+            <div class="w-6 h-6 rounded-full bg-gold flex items-center justify-center text-pitch text-xs font-bold" id="user-avatar">?</div>
+            <span class="text-sm font-medium" id="user-name">—</span>
+          </div>
+          <button onclick="handleLogout()" class="text-muted hover:text-white transition-colors p-2" title="Salir">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- ── MOBILE BOTTOM NAV ─────────────────────────────── -->
+    <div class="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-pitch border-t border-white/10 flex">
+      <button onclick="showSection('matches')" id="mnav-matches"
+        class="flex-1 py-3 flex flex-col items-center gap-0.5 text-gold text-xs font-semibold">
+        <span class="text-xl">⚽</span> Partidos
+      </button>
+      <button onclick="showSection('ranking')" id="mnav-ranking"
+        class="flex-1 py-3 flex flex-col items-center gap-0.5 text-muted text-xs font-medium">
+        <span class="text-xl">🏅</span> Ranking
+      </button>
+    </div>
+
+    <!-- ── CONTENT ────────────────────────────────────────── -->
+    <main class="max-w-5xl mx-auto px-4 pt-6 pb-24 sm:pb-10">
+
+      <!-- Toast notification -->
+      <div id="toast" class="fixed top-16 right-4 z-50 hidden transition-all duration-300">
+        <div class="flex items-center gap-2 bg-pitch-light border border-white/10 rounded-xl px-4 py-3 shadow-2xl text-sm">
+          <span id="toast-icon">✅</span>
+          <span id="toast-msg">Mensaje</span>
+        </div>
+      </div>
+
+      <!-- ════ SECTION: MATCHES ════ -->
+      <section id="section-matches">
+        <!-- Stage filter -->
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="font-display text-2xl tracking-wide">PRONÓSTICOS</h2>
+          <select id="filter-stage" onchange="filterMatches()"
+            class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-gold/50">
+            <option value="">Todas las fases</option>
+            <option value="Group">Fase de Grupos</option>
+            <option value="Round of 16">Octavos</option>
+            <option value="QF">Cuartos</option>
+            <option value="SF">Semis</option>
+            <option value="Final">Final</option>
+          </select>
+        </div>
+
+        <!-- Stats bar -->
+        <div id="stats-bar" class="grid grid-cols-3 gap-3 mb-6">
+          <div class="bg-pitch-light rounded-xl p-4 border border-white/5">
+            <div class="text-2xl font-display text-gold" id="stat-points">—</div>
+            <div class="text-xs text-muted mt-0.5">Mis puntos</div>
+          </div>
+          <div class="bg-pitch-light rounded-xl p-4 border border-white/5">
+            <div class="text-2xl font-display text-grass" id="stat-exact">—</div>
+            <div class="text-xs text-muted mt-0.5">Exactos</div>
+          </div>
+          <div class="bg-pitch-light rounded-xl p-4 border border-white/5">
+            <div class="text-2xl font-display text-white" id="stat-position">—</div>
+            <div class="text-xs text-muted mt-0.5">Posición</div>
+          </div>
+        </div>
+
+        <!-- Skeleton loaders -->
+        <div id="matches-skeleton" class="space-y-3">
+          <div class="skeleton h-28 w-full"></div>
+          <div class="skeleton h-28 w-full"></div>
+          <div class="skeleton h-28 w-full"></div>
+        </div>
+
+        <!-- Matches grid -->
+        <div id="matches-list" class="space-y-3 hidden"></div>
+      </section>
+
+      <!-- ════ SECTION: RANKING ════ -->
+      <section id="section-ranking" class="hidden">
+        <h2 class="font-display text-2xl tracking-wide mb-5">TABLA DE POSICIONES</h2>
+
+        <div id="ranking-skeleton" class="space-y-2">
+          <div class="skeleton h-14 w-full"></div>
+          <div class="skeleton h-14 w-full"></div>
+          <div class="skeleton h-14 w-full"></div>
+        </div>
+
+        <div id="ranking-list" class="hidden space-y-2 thin-scroll"></div>
+      </section>
+
+    </main>
+  </div><!-- /#app -->
+
+
+  <!-- ══════════════════════════════════════════════════════
+       JAVASCRIPT
+  ══════════════════════════════════════════════════════ -->
+  <script>
+    // ── CONFIG ────────────────────────────────────────────
+    const API = 'http://localhost:3000/api';  // ← cambia a tu URL de producción
+
+    // ── STATE ─────────────────────────────────────────────
+    let state = {
+      token      : localStorage.getItem('qm_token')   || null,
+      user       : JSON.parse(localStorage.getItem('qm_user') || 'null'),
+      matches    : [],
+      ranking    : [],
+      saveTimers : {}   // debounce por match_id
+    };
+
+    // ── HELPERS ──────────────────────────────────────────
+    function api(path, opts = {}) {
+      return fetch(API + path, {
+        headers: {
+          'Content-Type' : 'application/json',
+          ...(state.token ? { 'Authorization': `Bearer ${state.token}` } : {})
+        },
+        ...opts
+      }).then(async r => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Error desconocido');
+        return data;
+      });
+    }
+
+    function showToast(msg, type = 'success') {
+      const t = document.getElementById('toast');
+      document.getElementById('toast-icon').textContent = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+      document.getElementById('toast-msg').textContent = msg;
+      t.classList.remove('hidden');
+      setTimeout(() => t.classList.add('hidden'), 3000);
+    }
+
+    function formatMatchDate(utcStr) {
+      const d = new Date(utcStr);
+      return d.toLocaleDateString('es-GT', { weekday:'short', day:'numeric', month:'short' })
+           + ' · ' + d.toLocaleTimeString('es-GT', { hour:'2-digit', minute:'2-digit' });
+    }
+
+    function getResultBadge(match) {
+      if (!match.is_finished) return '';
+      if (match.points_earned === 2) return '<span class="text-xs font-bold text-grass bg-grass/10 rounded-full px-2 py-0.5">⭐ Exacto</span>';
+      if (match.points_earned === 1) return '<span class="text-xs font-bold text-gold  bg-gold/10  rounded-full px-2 py-0.5">✓ Resultado</span>';
+      if (match.home_score_pred != null) return '<span class="text-xs font-bold text-muted bg-white/5  rounded-full px-2 py-0.5">✗ Fallido</span>';
+      return '';
+    }
+
+    // ── AUTH ─────────────────────────────────────────────
+    function switchAuthTab(tab) {
+      document.getElementById('form-login').classList.toggle('hidden',    tab !== 'login');
+      document.getElementById('form-register').classList.toggle('hidden', tab !== 'register');
+      document.getElementById('tab-login').className    = 'auth-tab flex-1 py-3 text-sm font-semibold transition-colors ' + (tab==='login'    ? 'text-gold border-b-2 border-gold' : 'text-muted border-b-2 border-transparent hover:text-white');
+      document.getElementById('tab-register').className = 'auth-tab flex-1 py-3 text-sm font-semibold transition-colors ' + (tab==='register' ? 'text-gold border-b-2 border-gold' : 'text-muted border-b-2 border-transparent hover:text-white');
+      document.getElementById('auth-error').classList.add('hidden');
+    }
+
+    async function handleLogin() {
+      const email    = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      try {
+        const { user, token } = await api('/auth/login', {
+          method: 'POST', body: JSON.stringify({ email, password })
+        });
+        setSession(user, token);
+      } catch (e) {
+        showAuthError(e.message);
+      }
+    }
+
+    async function handleRegister() {
+      const username = document.getElementById('reg-username').value.trim();
+      const email    = document.getElementById('reg-email').value.trim();
+      const password = document.getElementById('reg-password').value;
+      try {
+        const { user, token } = await api('/auth/register', {
+          method: 'POST', body: JSON.stringify({ username, email, password })
+        });
+        setSession(user, token);
+      } catch (e) {
+        showAuthError(e.message);
+      }
+    }
+
+    function setSession(user, token) {
+      state.token = token;
+      state.user  = user;
+      localStorage.setItem('qm_token', token);
+      localStorage.setItem('qm_user', JSON.stringify(user));
+      showApp();
+    }
+
+    function handleLogout() {
+      localStorage.removeItem('qm_token');
+      localStorage.removeItem('qm_user');
+      location.reload();
+    }
+
+    function showAuthError(msg) {
+      const el = document.getElementById('auth-error');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    }
+
+    // ── APP INIT ─────────────────────────────────────────
+    function showApp() {
+      document.getElementById('auth-overlay').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      document.getElementById('user-name').textContent = state.user.username;
+      document.getElementById('user-avatar').textContent = state.user.username[0].toUpperCase();
+      loadMatches();
+    }
+
+    // ── SECTION NAVIGATION ───────────────────────────────
+    function showSection(name) {
+      ['matches','ranking'].forEach(s => {
+        document.getElementById(`section-${s}`).classList.toggle('hidden', s !== name);
+        // Desktop nav
+        const pill = document.getElementById(`nav-${s}`);
+        if (s === name) pill.classList.add('active', 'bg-gold', 'text-pitch');
+        else { pill.classList.remove('active', 'bg-gold', 'text-pitch'); pill.classList.add('text-muted'); }
+        // Mobile nav
+        const mpill = document.getElementById(`mnav-${s}`);
+        if (mpill) mpill.classList.toggle('text-gold', s === name);
+      });
+      if (name === 'ranking') loadRanking();
+    }
+
+    // ── MATCHES ──────────────────────────────────────────
+    async function loadMatches() {
+      try {
+        state.matches = await api('/matches');
+        renderMatches(state.matches);
+        updateStatsBar();
+      } catch (e) {
+        showToast(e.message, 'error');
+      } finally {
+        document.getElementById('matches-skeleton').classList.add('hidden');
+        document.getElementById('matches-list').classList.remove('hidden');
+      }
+    }
+
+    function filterMatches() {
+      const stage = document.getElementById('filter-stage').value;
+      const filtered = stage ? state.matches.filter(m => m.stage === stage) : state.matches;
+      renderMatches(filtered);
+    }
+
+    function renderMatches(matches) {
+      const container = document.getElementById('matches-list');
+
+      if (matches.length === 0) {
+        container.innerHTML = `<div class="text-center py-16 text-muted">
+          <div class="text-5xl mb-3">📭</div>
+          <p>No hay partidos en esta fase aún.</p>
+        </div>`;
+        return;
+      }
+
+      container.innerHTML = matches.map((m, i) => matchCard(m, i)).join('');
+    }
+
+    function matchCard(m, i) {
+      const locked    = m.is_locked || m.is_finished;
+      const hasPred   = m.home_score_pred != null;
+      const predHome  = hasPred ? m.home_score_pred : '';
+      const predAway  = hasPred ? m.away_score_pred : '';
+      const delay     = Math.min(i * 60, 400);
+
+      return `
+      <div class="card-anim bg-pitch-light rounded-2xl border border-white/5 p-4 relative overflow-hidden"
+           style="animation-delay:${delay}ms">
+
+        ${locked ? `<div class="absolute top-0 left-0 right-0 h-0.5 bg-locked/60"></div>` : ''}
+
+        <!-- Stage + date + lock badge -->
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs text-muted font-medium">${m.stage} · Partido ${m.match_number}</span>
+          <div class="flex items-center gap-2">
+            ${getResultBadge(m)}
+            ${locked
+              ? `<span class="text-xs text-locked flex items-center gap-1"><span>🔒</span>${m.is_finished ? 'Finalizado' : 'Cerrado'}</span>`
+              : `<span class="text-xs text-grass flex items-center gap-1"><span>🟢</span>Abierto</span>`
+            }
+          </div>
+        </div>
+
+        <!-- Teams + Score inputs -->
+        <div class="flex items-center justify-center gap-3">
+
+          <!-- Home team -->
+          <div class="flex-1 flex flex-col items-center gap-1 min-w-0">
+            <span class="text-3xl leading-none">${m.home_flag_emoji || '🏳️'}</span>
+            <span class="text-xs font-semibold text-center leading-tight truncate w-full text-center">${m.home_team}</span>
+          </div>
+
+          <!-- Score area -->
+          <div class="flex items-center gap-2 shrink-0">
+            <!-- Predicción -->
+            <div class="flex items-center gap-1.5">
+              <input type="number" min="0" max="99"
+                class="score-input" id="pred-home-${m.id}"
+                value="${predHome}"
+                ${locked ? 'disabled' : ''}
+                oninput="debounceSave('${m.id}')"
+                placeholder="–" />
+              <span class="text-white/20 font-bold text-lg">:</span>
+              <input type="number" min="0" max="99"
+                class="score-input" id="pred-away-${m.id}"
+                value="${predAway}"
+                ${locked ? 'disabled' : ''}
+                oninput="debounceSave('${m.id}')"
+                placeholder="–" />
+            </div>
+
+            <!-- Resultado real (si terminó) -->
+            ${m.is_finished ? `
+              <div class="ml-2 flex items-center gap-1 text-sm text-muted">
+                <span class="font-display text-lg text-white">${m.home_score_final}</span>
+                <span class="text-white/30">-</span>
+                <span class="font-display text-lg text-white">${m.away_score_final}</span>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Away team -->
+          <div class="flex-1 flex flex-col items-center gap-1 min-w-0">
+            <span class="text-3xl leading-none">${m.away_flag_emoji || '🏳️'}</span>
+            <span class="text-xs font-semibold text-center leading-tight truncate w-full text-center">${m.away_team}</span>
+          </div>
+        </div>
+
+        <!-- Date footer -->
+        <p class="text-xs text-muted text-center mt-3">${formatMatchDate(m.match_start_utc)}</p>
+
+        <!-- Saving indicator -->
+        <div id="saving-${m.id}" class="hidden absolute bottom-2 right-3 text-xs text-muted animate-pulse">guardando…</div>
+      </div>`;
+    }
+
+    function updateStatsBar() {
+      // Calcular desde los propios datos de matches (prediciones del usuario)
+      const played    = state.matches.filter(m => m.is_finished && m.home_score_pred != null);
+      const points    = played.reduce((s, m) => s + (m.points_earned || 0), 0);
+      const exact     = played.filter(m => m.points_earned === 2).length;
+
+      document.getElementById('stat-points').textContent  = points;
+      document.getElementById('stat-exact').textContent   = exact;
+
+      // Position from ranking (load separately)
+      api('/ranking').then(r => {
+        const me = r.find(p => p.id === state.user.id);
+        document.getElementById('stat-position').textContent = me ? `#${me.position}` : '–';
+      }).catch(() => {});
+    }
+
+    // Debounce: espera 700ms sin cambios antes de guardar
+    function debounceSave(matchId) {
+      clearTimeout(state.saveTimers[matchId]);
+      state.saveTimers[matchId] = setTimeout(() => savePrediction(matchId), 700);
+    }
+
+    async function savePrediction(matchId) {
+      const homeInput = document.getElementById(`pred-home-${matchId}`);
+      const awayInput = document.getElementById(`pred-away-${matchId}`);
+      const home = homeInput.value;
+      const away = awayInput.value;
+
+      if (home === '' || away === '') return;
+
+      const saving = document.getElementById(`saving-${matchId}`);
+      saving.classList.remove('hidden');
+
+      try {
+        await api('/predictions', {
+          method : 'POST',
+          body   : JSON.stringify({
+            match_id        : matchId,
+            home_score_pred : parseInt(home),
+            away_score_pred : parseInt(away)
+          })
+        });
+        showToast('Pronóstico guardado ✓');
+      } catch (e) {
+        showToast(e.message, 'error');
+      } finally {
+        saving.classList.add('hidden');
+      }
+    }
+
+    // ── RANKING ──────────────────────────────────────────
+    async function loadRanking() {
+      document.getElementById('ranking-skeleton').classList.remove('hidden');
+      document.getElementById('ranking-list').classList.add('hidden');
+      try {
+        state.ranking = await api('/ranking');
+        renderRanking(state.ranking);
+      } catch (e) {
+        showToast(e.message, 'error');
+      } finally {
+        document.getElementById('ranking-skeleton').classList.add('hidden');
+        document.getElementById('ranking-list').classList.remove('hidden');
+      }
+    }
+
+    function renderRanking(ranking) {
+      const container = document.getElementById('ranking-list');
+      if (ranking.length === 0) {
+        container.innerHTML = '<p class="text-center text-muted py-10">Aún no hay datos en el ranking.</p>';
+        return;
+      }
+
+      const medals = ['🥇','🥈','🥉'];
+
+      container.innerHTML = ranking.map(p => {
+        const isMe     = p.id === state.user.id;
+        const posLabel = p.position <= 3 ? medals[p.position - 1] : `#${p.position}`;
+
+        return `
+        <div class="flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors
+             ${isMe ? 'bg-gold/10 border-gold/30' : 'bg-pitch-light border-white/5'}">
+          <span class="text-xl w-8 text-center">${posLabel}</span>
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-pitch-light to-white/10 border border-white/10
+               flex items-center justify-center text-sm font-bold text-gold shrink-0">
+            ${p.username[0].toUpperCase()}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-sm truncate ${isMe ? 'text-gold' : ''}">
+              ${p.username}${isMe ? ' (tú)' : ''}
+            </div>
+            <div class="text-xs text-muted">${p.exact_score_count} exactos</div>
+          </div>
+          <div class="text-right shrink-0">
+            <div class="font-display text-2xl text-white">${p.total_points}</div>
+            <div class="text-xs text-muted">pts</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // ── BOOT ─────────────────────────────────────────────
+    if (state.token && state.user) {
+      showApp();
+    }
+  </script>
+</body>
+</html>

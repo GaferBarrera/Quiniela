@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Quiniela 2026</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        colors: {
+          pitch: { DEFAULT: '#0A1628', light: '#112240' },
+          gold:  { DEFAULT: '#F0B429', dark: '#C98F0A'  },
+          grass: { DEFAULT: '#1DB954' },
+        },
+        fontFamily: { display: ['Bebas Neue', 'sans-serif'], body: ['Inter','sans-serif'] }
+      }}
+    }
+  </script>
+</head>
+<body class="bg-pitch text-white min-h-screen font-body">
+
+  <!-- Require admin login check in JS -->
+  <div id="admin-gate" class="flex items-center justify-center min-h-screen p-4 hidden">
+    <div class="bg-pitch-light p-8 rounded-2xl border border-white/10 w-full max-w-sm">
+      <h1 class="font-display text-3xl text-gold mb-6">ADMIN LOGIN</h1>
+      <input id="adm-email"    type="email"    placeholder="Email"      class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm mb-3 focus:outline-none" />
+      <input id="adm-password" type="password" placeholder="Password"  class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm mb-4 focus:outline-none" />
+      <button onclick="adminLogin()" class="w-full bg-gold text-pitch font-bold py-2.5 rounded-lg">Entrar</button>
+      <p id="adm-err" class="text-red-400 text-xs mt-2 hidden"></p>
+    </div>
+  </div>
+
+  <div id="admin-app" class="hidden max-w-4xl mx-auto px-4 py-8">
+    <div class="flex items-center justify-between mb-8">
+      <h1 class="font-display text-4xl text-gold">PANEL ADMIN <span class="text-white/30">2026</span></h1>
+      <button onclick="adminLogout()" class="text-sm text-muted hover:text-white">Salir</button>
+    </div>
+
+    <!-- Create match form -->
+    <div class="bg-pitch-light rounded-2xl border border-white/10 p-6 mb-8">
+      <h2 class="font-semibold text-sm text-muted uppercase tracking-wider mb-4">Agregar Partido</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <input id="f-num"   type="number"   placeholder="Nº partido"   class="adm-input" />
+        <input id="f-home"  type="text"     placeholder="Local"         class="adm-input" />
+        <input id="f-away"  type="text"     placeholder="Visitante"     class="adm-input" />
+        <input id="f-hemoji" type="text"    placeholder="🏴 Emoji local"  class="adm-input" />
+        <input id="f-aemoji" type="text"    placeholder="🏳 Emoji visit." class="adm-input" />
+        <select id="f-stage" class="adm-input">
+          <option value="Group">Fase de Grupos</option>
+          <option value="Round of 16">Octavos</option>
+          <option value="QF">Cuartos</option>
+          <option value="SF">Semis</option>
+          <option value="Final">Final</option>
+        </select>
+        <input id="f-date"  type="datetime-local" placeholder="Fecha/hora (local)"  class="adm-input col-span-2 sm:col-span-3" />
+      </div>
+      <button onclick="createMatch()" class="mt-4 bg-grass text-white font-bold py-2 px-6 rounded-lg text-sm hover:opacity-90 transition">
+        + Crear partido
+      </button>
+      <p id="match-msg" class="text-xs mt-2 hidden"></p>
+    </div>
+
+    <!-- Matches list with result form -->
+    <h2 class="font-semibold text-sm text-muted uppercase tracking-wider mb-3">Partidos — Cargar Resultado</h2>
+    <div id="adm-matches" class="space-y-3"></div>
+  </div>
+
+  <style>
+    .adm-input {
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: .5rem;
+      padding: .6rem 1rem;
+      font-size: .875rem;
+      color: white;
+      outline: none;
+      width: 100%;
+    }
+    .adm-input:focus { border-color: #F0B429; }
+    .adm-input option { background: #0A1628; }
+  </style>
+
+  <script>
+    const API = 'http://localhost:3000/api';
+    let admToken = localStorage.getItem('qm_adm_token');
+
+    function api(path, opts = {}) {
+      return fetch(API + path, {
+        headers: { 'Content-Type':'application/json',
+          ...(admToken ? { 'Authorization': `Bearer ${admToken}` } : {}) },
+        ...opts
+      }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error); return d; });
+    }
+
+    async function adminLogin() {
+      const email    = document.getElementById('adm-email').value.trim();
+      const password = document.getElementById('adm-password').value;
+      try {
+        const { user, token } = await api('/auth/login', { method:'POST', body: JSON.stringify({email, password}) });
+        if (user.role !== 'admin') throw new Error('No tienes permisos de administrador.');
+        admToken = token;
+        localStorage.setItem('qm_adm_token', token);
+        showAdminApp();
+      } catch(e) {
+        const el = document.getElementById('adm-err');
+        el.textContent = e.message;
+        el.classList.remove('hidden');
+      }
+    }
+
+    function adminLogout() {
+      localStorage.removeItem('qm_adm_token');
+      location.reload();
+    }
+
+    function showAdminApp() {
+      document.getElementById('admin-gate').classList.add('hidden');
+      document.getElementById('admin-app').classList.remove('hidden');
+      loadAdminMatches();
+    }
+
+    async function loadAdminMatches() {
+      try {
+        const matches = await api('/admin/matches');
+        renderAdminMatches(matches);
+      } catch(e) { alert(e.message); }
+    }
+
+    function renderAdminMatches(matches) {
+      document.getElementById('adm-matches').innerHTML = matches.map(m => `
+        <div class="bg-pitch-light rounded-xl border border-white/10 p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <span class="font-semibold">${m.home_flag_emoji||''}${m.home_team} vs ${m.away_team}${m.away_flag_emoji||''}</span>
+              <span class="text-xs text-muted ml-2">${m.stage} · #${m.match_number}</span>
+            </div>
+            ${m.is_finished
+              ? `<span class="text-xs text-grass font-bold">✅ ${m.home_score_final}–${m.away_score_final}</span>`
+              : `<span class="text-xs text-gold">⏳ Pendiente</span>`
+            }
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="number" min="0" id="rh-${m.id}" placeholder="Local" value="${m.home_score_final??''}"
+              class="adm-input w-20 text-center" />
+            <span class="text-muted">–</span>
+            <input type="number" min="0" id="ra-${m.id}" placeholder="Visita" value="${m.away_score_final??''}"
+              class="adm-input w-20 text-center" />
+            <button onclick="postResult('${m.id}')"
+              class="bg-gold text-pitch font-bold text-sm py-2 px-4 rounded-lg hover:opacity-90 transition ml-1">
+              Guardar resultado
+            </button>
+            <span id="res-msg-${m.id}" class="text-xs text-grass hidden">✓ Guardado</span>
+          </div>
+          <p class="text-xs text-muted mt-1">Pronósticos recibidos: ${m.prediction_count}</p>
+        </div>`).join('');
+    }
+
+    async function postResult(matchId) {
+      const home = document.getElementById(`rh-${matchId}`).value;
+      const away = document.getElementById(`ra-${matchId}`).value;
+      if (home===''||away==='') return alert('Ingresa ambos marcadores.');
+      try {
+        await api(`/admin/matches/${matchId}/result`, {
+          method:'PATCH', body: JSON.stringify({ home_score_final:+home, away_score_final:+away })
+        });
+        document.getElementById(`res-msg-${matchId}`).classList.remove('hidden');
+        setTimeout(() => loadAdminMatches(), 800);
+      } catch(e) { alert(e.message); }
+    }
+
+    async function createMatch() {
+      const numVal    = document.getElementById('f-num').value.trim();
+      const homeVal   = document.getElementById('f-home').value.trim();
+      const awayVal   = document.getElementById('f-away').value.trim();
+      const dateLocal = document.getElementById('f-date').value;
+      const matchMsg  = document.getElementById('match-msg');
+
+      const matchNum = parseInt(numVal);
+      if (!numVal || isNaN(matchNum) || matchNum < 1) {
+        matchMsg.textContent = '\u274C N\u00BA partido debe ser un entero mayor a 0.';
+        matchMsg.className = 'text-xs mt-2 text-red-400';
+        matchMsg.classList.remove('hidden');
+        return;
+      }
+      if (!homeVal || !awayVal || !dateLocal) {
+        matchMsg.textContent = '\u274C Local, visitante y fecha son requeridos.';
+        matchMsg.className = 'text-xs mt-2 text-red-400';
+        matchMsg.classList.remove('hidden');
+        return;
+      }
+
+      const utc = new Date(dateLocal).toISOString();
+      try {
+        await api('/admin/matches', { method:'POST', body: JSON.stringify({
+          match_number   : matchNum,
+          home_team      : homeVal,
+          away_team      : awayVal,
+          home_flag_emoji: document.getElementById('f-hemoji').value.trim(),
+          away_flag_emoji: document.getElementById('f-aemoji').value.trim(),
+          stage          : document.getElementById('f-stage').value,
+          match_start_utc: utc
+        })});
+        const msg = document.getElementById('match-msg');
+        msg.textContent = '✅ Partido creado.';
+        msg.className = 'text-xs mt-2 text-grass';
+        msg.classList.remove('hidden');
+        loadAdminMatches();
+      } catch(e) {
+        const msg = document.getElementById('match-msg');
+        msg.textContent = '❌ ' + e.message;
+        msg.className = 'text-xs mt-2 text-red-400';
+        msg.classList.remove('hidden');
+      }
+    }
+
+    // Boot
+    if (admToken) showAdminApp();
+    else document.getElementById('admin-gate').classList.remove('hidden');
+  </script>
+</body>
+</html>
